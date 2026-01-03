@@ -1,0 +1,7 @@
+{
+  "name": "TrustLayer",
+  "description": "A security-grade, model-agnostic AI authenticity analysis system for detecting deepfakes and synthetic media.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
