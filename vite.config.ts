@@ -29,7 +29,26 @@ export default defineConfig(({ mode }) => {
       },
       build: {
         outDir: 'dist',
-        sourcemap: false
+        sourcemap: false,
+        chunkSizeWarningLimit: 1600,
+        rollupOptions: {
+          output: {
+            manualChunks(id) {
+              if (id.includes('node_modules')) {
+                if (id.includes('three') || id.includes('@react-three')) {
+                  return 'three-vendor';
+                }
+                if (id.includes('@google/genai')) {
+                  return 'genai-vendor';
+                }
+                if (id.includes('recharts') || id.includes('lucide-react')) {
+                  return 'ui-vendor';
+                }
+                return 'vendor';
+              }
+            }
+          }
+        }
       }
     };
 });
