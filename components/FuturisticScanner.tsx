@@ -3,7 +3,18 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, MeshDistortMaterial, Float, Ring, Points, PointMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Polyfill for TypeScript intrinsic elements handled globally
+// Augment JSX namespace to recognize React Three Fiber elements
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      meshBasicMaterial: any;
+      group: any;
+      ambientLight: any;
+      pointLight: any;
+      fog: any;
+    }
+  }
+}
 
 const NeuralCore = () => {
   const meshRef = useRef<THREE.Mesh>(null);
