@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ShieldAlert, Phone, MapPin, FileText, Copy, ExternalLink, Globe, Lock, AlertOctagon } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ShieldAlert, Phone, MapPin, FileText, Copy, ExternalLink, Globe, Lock, AlertOctagon, Mail } from 'lucide-react';
 import { EmergencyContact, AnalysisResult } from '../types';
 
 interface Props {
@@ -19,25 +19,27 @@ const SafetyPanel: React.FC<Props> = ({ isVisible, result }) => {
     { label: "Digital Violence Helpline", number: "Online Report", description: "Varies by region" }
   ]);
 
-  const reportContent = `TRUSTLAYER VERIFICATION REPORT
+  // Memoize report to ensure ID doesn't change on re-renders
+  const reportContent = useMemo(() => `TRUSTLAYER DELETION REQUEST & VERIFICATION REPORT
 --------------------------------
 REPORT ID: ${Math.random().toString(36).substring(7).toUpperCase()}-${Date.now().toString().substring(8)}
 DATE: ${new Date().toISOString()}
 
 ANALYSIS SUMMARY:
 - AI Probability: ${result.ai_generated_probability}%
-- Classification: HIGH RISK / SYNTHETIC
+- Classification: ${result.deepfake_risk === 'high' ? 'CRITICAL RISK / SYNTHETIC' : 'SUSPICIOUS'}
 - Detected Artifacts: ${result.artifacts_detected.join(', ') || 'General synthetic patterns'}
 
-ASSESSMENT:
-The analyzed media exhibits structural and statistical anomalies consistent with AI generation.
+DELETION REQUEST:
+The analyzed media exhibits clear indicators of artificial manipulation (Deepfake/Synthetic) and has been flagged as potentially harmful. 
+We formally request the immediate deletion and removal of this content to prevent misinformation, impersonation, or harm.
 
-RECOMMENDATION:
-Review for policy violation regarding synthetic media, impersonation, and misinformation.
+TECHNICAL ASSESSMENT:
+${result.analysis_summary}
 
 PRIVACY NOTE:
 TrustLayer does not store user uploads. This report relies on real-time session analysis.
---------------------------------`;
+--------------------------------`, [result]);
 
   const handleLocate = () => {
     if (!navigator.geolocation) {
@@ -66,6 +68,14 @@ TrustLayer does not store user uploads. This report relies on real-time session 
     navigator.clipboard.writeText(reportContent);
     setCopySuccess(true);
     setTimeout(() => setCopySuccess(false), 2000);
+  };
+
+  const handleEmailReport = () => {
+    const reportId = reportContent.match(/REPORT ID: (.*)/)?.[1] || 'UNKNOWN';
+    const subject = encodeURIComponent(`URGENT: Takedown Request - Synthetic Media Report #${reportId}`);
+    const body = encodeURIComponent(reportContent);
+    // Opening mail client with blank 'to' address so user can fill in specific cyber cell or platform abuse email
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
   if (!isVisible) return null;
@@ -99,8 +109,8 @@ TrustLayer does not store user uploads. This report relies on real-time session 
               <Globe className="w-4 h-4" /> Social Media Containment
             </h4>
             <p className="text-slate-700 dark:text-slate-300 text-sm mb-6">
-              To prevent further spread, we recommend reporting and removing this content immediately.
-              A verified takedown report has been prepared for you.
+              To prevent further spread, we recommend requesting deletion immediately.
+              A formal takedown report has been prepared for you.
             </p>
             
             <button 
@@ -108,7 +118,7 @@ TrustLayer does not store user uploads. This report relies on real-time session 
               className="w-full mb-6 flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg transition-all shadow-sm"
             >
               <FileText className="w-4 h-4" />
-              {showReport ? 'Hide Takedown Report' : 'Generate Takedown Report'}
+              {showReport ? 'Hide Takedown Report' : 'Generate Deletion Request'}
             </button>
 
             {/* Quick Links */}
@@ -170,23 +180,32 @@ TrustLayer does not store user uploads. This report relies on real-time session 
       {/* Takedown Report Modal / Overlay */}
       {showReport && (
         <div className="mt-4 bg-slate-900 border border-slate-800 rounded-xl p-6 animate-fade-in-up shadow-2xl relative">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
             <h4 className="text-white font-mono text-sm font-bold flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary-500" /> GENERATED REPORT
+              <FileText className="w-4 h-4 text-primary-500" /> DELETION REQUEST
             </h4>
-            <button 
-              onClick={copyReport}
-              className={`text-xs px-3 py-1.5 rounded flex items-center gap-2 transition-all ${copySuccess ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary-600 hover:bg-primary-500 text-white'}`}
-            >
-              {copySuccess ? 'COPIED TO CLIPBOARD' : 'COPY REPORT TEXT'}
-              <Copy className="w-3 h-3" />
-            </button>
+            <div className="flex gap-2 w-full sm:w-auto">
+               <button 
+                onClick={handleEmailReport}
+                className="flex-1 sm:flex-none text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded flex items-center justify-center gap-2 transition-all hover:text-white"
+              >
+                <Mail className="w-3 h-3" />
+                EMAIL CYBER CELL
+              </button>
+              <button 
+                onClick={copyReport}
+                className={`flex-1 sm:flex-none text-xs px-3 py-1.5 rounded flex items-center justify-center gap-2 transition-all ${copySuccess ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary-600 hover:bg-primary-500 text-white'}`}
+              >
+                {copySuccess ? 'COPIED' : 'COPY TEXT'}
+                <Copy className="w-3 h-3" />
+              </button>
+            </div>
           </div>
           <pre className="bg-black/50 p-4 rounded-lg text-xs md:text-sm font-mono text-slate-300 overflow-x-auto whitespace-pre-wrap border border-slate-800">
             {reportContent}
           </pre>
           <p className="text-xs text-slate-500 mt-3 text-center">
-            Paste this report into the "Additional Details" section of social media reporting forms.
+            Click "Email Cyber Cell" to open your mail client, or copy this report to platform removal forms.
           </p>
         </div>
       )}
