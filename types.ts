@@ -43,3 +43,12 @@ export enum AppState {
 }
 
 export type View = 'dashboard' | 'moderation' | 'deepfake' | 'ai-check' | 'analytics' | 'developer';
+
+// Add global JSX definitions to ensure compatibility with strict environments
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+  }
+}
