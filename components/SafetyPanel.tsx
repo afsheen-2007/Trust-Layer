@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ShieldAlert, Phone, MapPin, FileText, Copy, ExternalLink, Globe, Lock, AlertOctagon, Mail } from 'lucide-react';
+import { ShieldAlert, Phone, MapPin, FileText, Copy, ExternalLink, Globe, Lock, AlertOctagon, Mail, X } from 'lucide-react';
 import { EmergencyContact, AnalysisResult } from '../types';
 
 interface Props {
@@ -12,6 +12,7 @@ const SafetyPanel: React.FC<Props> = ({ isVisible, result }) => {
   const [showReport, setShowReport] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [emailOptionsVisible, setEmailOptionsVisible] = useState(false);
   
   const [contacts, setContacts] = useState<EmergencyContact[]>([
     { label: "Cybercrime Reporting", number: "112 (EU) / 911 (US)", description: "Emergency Services" },
@@ -70,12 +71,33 @@ TrustLayer does not store user uploads. This report relies on real-time session 
     setTimeout(() => setCopySuccess(false), 2000);
   };
 
-  const handleEmailReport = () => {
-    const reportId = reportContent.match(/REPORT ID: (.*)/)?.[1] || 'UNKNOWN';
-    const subject = encodeURIComponent(`URGENT: Takedown Request - Synthetic Media Report #${reportId}`);
-    const body = encodeURIComponent(reportContent);
-    // Opening mail client with blank 'to' address so user can fill in specific cyber cell or platform abuse email
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  const getMailUrl = (type: 'default' | 'gmail' | 'outlook' | 'yahoo') => {
+      const reportId = reportContent.match(/REPORT ID: (.*)/)?.[1] || 'UNKNOWN';
+      const subject = `URGENT: Takedown Request - Synthetic Media Report #${reportId}`;
+      
+      // Truncate to avoid browser URL limits (approx 2000 chars safe limit)
+      let bodyText = reportContent;
+      if (bodyText.length > 1500) {
+        bodyText = bodyText.substring(0, 1500) + "\n\n[TRUNCATED - PLEASE ATTACH FULL REPORT FROM DASHBOARD]";
+      }
+
+      const encSubject = encodeURIComponent(subject);
+      const encBody = encodeURIComponent(bodyText);
+
+      if (type === 'gmail') return `https://mail.google.com/mail/?view=cm&fs=1&su=${encSubject}&body=${encBody}`;
+      if (type === 'outlook') return `https://outlook.office.com/mail/deeplink/compose?subject=${encSubject}&body=${encBody}`;
+      if (type === 'yahoo') return `https://compose.mail.yahoo.com/?subject=${encSubject}&body=${encBody}`;
+      return `mailto:?subject=${encSubject}&body=${encBody}`;
+  };
+
+  const openEmail = (type: 'default' | 'gmail' | 'outlook' | 'yahoo') => {
+      const url = getMailUrl(type);
+      if (type === 'default') {
+          window.location.href = url;
+      } else {
+          window.open(url, '_blank');
+      }
+      setEmailOptionsVisible(false);
   };
 
   if (!isVisible) return null;
@@ -113,13 +135,48 @@ TrustLayer does not store user uploads. This report relies on real-time session 
               A formal takedown report has been prepared for you.
             </p>
             
-            <button 
-              onClick={() => setShowReport(!showReport)}
-              className="w-full mb-6 flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg transition-all shadow-sm"
-            >
-              <FileText className="w-4 h-4" />
-              {showReport ? 'Hide Takedown Report' : 'Generate Deletion Request'}
-            </button>
+            <div className="space-y-3 mb-6">
+                {!emailOptionsVisible ? (
+                  <button 
+                    onClick={() => setEmailOptionsVisible(true)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-bold border border-red-500"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email Cyber Cell (Deletion Request)
+                  </button>
+                ) : (
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-red-200 dark:border-red-900/50 shadow-inner animate-fade-in">
+                      <div className="flex justify-between items-center mb-3">
+                         <span className="text-xs font-bold text-slate-500 uppercase">Select Mail Provider</span>
+                         <button onClick={() => setEmailOptionsVisible(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                            <X className="w-4 h-4" />
+                         </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                          <button onClick={() => openEmail('gmail')} className="flex items-center justify-center gap-2 py-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors">
+                             Gmail
+                          </button>
+                          <button onClick={() => openEmail('outlook')} className="flex items-center justify-center gap-2 py-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors">
+                             Outlook
+                          </button>
+                          <button onClick={() => openEmail('yahoo')} className="flex items-center justify-center gap-2 py-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors">
+                             Yahoo
+                          </button>
+                          <button onClick={() => openEmail('default')} className="flex items-center justify-center gap-2 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-800 dark:text-white transition-colors">
+                             Default App
+                          </button>
+                      </div>
+                  </div>
+                )}
+
+                <button 
+                  onClick={() => setShowReport(!showReport)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg transition-all shadow-sm"
+                >
+                  <FileText className="w-4 h-4" />
+                  {showReport ? 'Hide Report Details' : 'View Generated Report'}
+                </button>
+            </div>
 
             {/* Quick Links */}
             <div className="space-y-3">
@@ -182,17 +239,10 @@ TrustLayer does not store user uploads. This report relies on real-time session 
         <div className="mt-4 bg-slate-900 border border-slate-800 rounded-xl p-6 animate-fade-in-up shadow-2xl relative">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
             <h4 className="text-white font-mono text-sm font-bold flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary-500" /> DELETION REQUEST
+              <FileText className="w-4 h-4 text-primary-500" /> DELETION REQUEST REPORT
             </h4>
             <div className="flex gap-2 w-full sm:w-auto">
                <button 
-                onClick={handleEmailReport}
-                className="flex-1 sm:flex-none text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded flex items-center justify-center gap-2 transition-all hover:text-white"
-              >
-                <Mail className="w-3 h-3" />
-                EMAIL CYBER CELL
-              </button>
-              <button 
                 onClick={copyReport}
                 className={`flex-1 sm:flex-none text-xs px-3 py-1.5 rounded flex items-center justify-center gap-2 transition-all ${copySuccess ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary-600 hover:bg-primary-500 text-white'}`}
               >
@@ -205,7 +255,7 @@ TrustLayer does not store user uploads. This report relies on real-time session 
             {reportContent}
           </pre>
           <p className="text-xs text-slate-500 mt-3 text-center">
-            Click "Email Cyber Cell" to open your mail client, or copy this report to platform removal forms.
+            Copy this report to include in your correspondence with platform support or authorities.
           </p>
         </div>
       )}
