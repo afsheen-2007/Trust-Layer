@@ -5,7 +5,7 @@ export const Developer: React.FC = () => {
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
   
-  const apiKey = "sk_trust_72839182_mock_key_8821";
+  const apiKey = "API_KEY_PLACEHOLDER";
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(apiKey);
@@ -20,7 +20,7 @@ export const Developer: React.FC = () => {
             <h2 className="text-2xl font-bold mb-2">Developer API</h2>
             <p className="text-slate-400 max-w-xl">
               Integrate TrustLayer detection capabilities directly into your applications. 
-              Use your API key to authenticate requests.
+              API integration coming soon.
             </p>
           </div>
           <Terminal className="absolute right-8 bottom-8 text-slate-800 opacity-50" size={120} />

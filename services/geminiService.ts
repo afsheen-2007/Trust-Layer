@@ -1,9 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, ChamberId } from "../types";
-
-const MODEL_NAME = "gemini-3-flash-preview";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Base ethical guidelines shared across all chambers
 const ETHICAL_CORE = `
@@ -78,105 +73,107 @@ const CHAMBER_PROMPTS: Record<string, string> = {
   `
 };
 
+// Mock analysis generator - replaces Gemini API calls
+const generateMockAnalysis = (
+  chamber: ChamberId,
+  fileType: 'image' | 'video' | 'audio' | 'text',
+  file: File
+): AnalysisResult => {
+  // Generate semi-realistic mock data based on chamber type
+  const chamberMockData: Record<string, Partial<AnalysisResult>> = {
+    image_auth: {
+      ai_generated_probability: Math.floor(Math.random() * 40) + 10, // 10-50%
+      artifacts_detected: ['Slight texture inconsistencies', 'Normal lighting patterns'],
+      model_likelihood: ['Real image', 'Possible minor edits'],
+      confidence_level: 'high' as const,
+      analysis_summary: 'Image shows characteristics consistent with authentic photography. Minor artifacts detected are within normal range for standard image processing.',
+      limitations: 'Analysis based on visual inspection only. Cannot verify original source or metadata.'
+    },
+    video_deepfake: {
+      ai_generated_probability: Math.floor(Math.random() * 30) + 5, // 5-35%
+      deepfake_risk: 'low' as const,
+      artifacts_detected: ['Temporal consistency normal', 'Natural facial movements'],
+      model_likelihood: ['Authentic video', 'Standard recording'],
+      confidence_level: 'high' as const,
+      analysis_summary: 'Video displays natural temporal consistency with no signs of deepfake manipulation. Facial movements and lighting appear authentic.',
+      limitations: 'Analysis limited to visual inspection. Cannot verify source or chain of custody.'
+    },
+    audio_auth: {
+      ai_generated_probability: Math.floor(Math.random() * 25) + 5, // 5-30%
+      deepfake_risk: 'low' as const,
+      artifacts_detected: ['Natural prosody', 'Consistent background noise'],
+      model_likelihood: ['Authentic audio', 'Natural speech patterns'],
+      confidence_level: 'medium' as const,
+      analysis_summary: 'Audio analysis indicates natural speech patterns with consistent breathing and prosody. No signs of TTS or voice cloning detected.',
+      limitations: 'Analysis based on spectrogram analysis. Cannot verify speaker identity without additional verification.'
+    },
+    text_ai: {
+      ai_generated_probability: Math.floor(Math.random() * 50) + 15, // 15-65%
+      artifacts_detected: ['Varied sentence structure', 'Natural language patterns'],
+      model_likelihood: ['Human-written', 'Possible AI assistance'],
+      confidence_level: 'medium' as const,
+      analysis_summary: 'Text analysis shows natural language patterns with good variance in sentence structure. Some characteristics may indicate AI assistance but overall appears human-authored.',
+      limitations: 'Text analysis cannot definitively determine authorship. Results are probabilistic estimates.'
+    },
+    url_scanner: {
+      ai_generated_probability: Math.floor(Math.random() * 20) + 5, // 5-25%
+      deepfake_risk: 'low' as const,
+      artifacts_detected: ['Standard URL structure', 'No typosquatting detected'],
+      model_likelihood: ['Legitimate website', 'Standard domain'],
+      confidence_level: 'high' as const,
+      analysis_summary: 'URL structure appears legitimate with no obvious signs of phishing or typosquatting. Visual elements match expected brand patterns.',
+      limitations: 'Analysis based on URL structure and visual assessment only. Cannot verify SSL certificates or backend security.'
+    },
+    moderation: {
+      ai_generated_probability: Math.floor(Math.random() * 30) + 5, // 5-35%
+      deepfake_risk: 'low' as const,
+      artifacts_detected: ['No harmful content detected', 'Standard content patterns'],
+      model_likelihood: ['Safe content', 'Policy compliant'],
+      confidence_level: 'high' as const,
+      analysis_summary: 'Content moderation analysis indicates safe, policy-compliant material with no signs of harassment, hate speech, or harmful content.',
+      limitations: 'Moderation analysis is based on pattern detection. Context-dependent content may require human review.'
+    },
+    impersonation: {
+      ai_generated_probability: Math.floor(Math.random() * 35) + 10, // 10-45%
+      deepfake_risk: 'low' as const,
+      artifacts_detected: ['Natural profile characteristics', 'No synthetic indicators'],
+      model_likelihood: ['Authentic profile', 'Standard identity'],
+      confidence_level: 'medium' as const,
+      analysis_summary: 'Profile analysis shows natural characteristics with no obvious signs of synthetic generation or identity theft. Appears to be authentic.',
+      limitations: 'Analysis cannot verify true identity without additional verification methods. Results are based on visual and pattern analysis only.'
+    }
+  };
+
+  const baseMock = chamberMockData[chamber] || chamberMockData.image_auth;
+  
+  return {
+    ai_generated_probability: baseMock.ai_generated_probability || 25,
+    content_type: fileType,
+    deepfake_risk: baseMock.deepfake_risk || 'low',
+    artifacts_detected: baseMock.artifacts_detected || [],
+    model_likelihood: baseMock.model_likelihood || [],
+    confidence_level: baseMock.confidence_level || 'medium',
+    analysis_summary: baseMock.analysis_summary || 'Analysis completed with standard checks.',
+    limitations: baseMock.limitations || 'Standard analysis limitations apply.'
+  };
+};
+
 export const analyzeMedia = async (
   file: File,
   fileType: 'image' | 'video' | 'audio' | 'text',
   chamber: ChamberId
 ): Promise<AnalysisResult> => {
   try {
-    let parts: any[] = [];
+    // Mock analysis - simulate API delay and return mock results
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    if (fileType === 'text') {
-      const textContent = await file.text();
-      parts.push({ text: textContent });
-    } else {
-      const base64Data = await fileToBase64(file);
-      const dataPart = base64Data.split(',')[1];
-      parts.push({
-        inlineData: {
-          mimeType: file.type,
-          data: dataPart
-        }
-      });
-    }
-
-    // specific instruction based on chamber, falling back to image auth if undefined
-    const specificInstruction = CHAMBER_PROMPTS[chamber] || CHAMBER_PROMPTS.image_auth;
-
-    const fullSystemInstruction = `
-      ${specificInstruction}
-      
-      ${ETHICAL_CORE}
-
-      ### 📊 OUTPUT REQUIREMENTS
-      Return results in JSON format matching the schema provided.
-      - 'ai_generated_probability': 0-100 score of likelihood.
-      - 'deepfake_risk': Risk assessment based on chamber purpose.
-      - 'analysis_summary': A clear, human-readable explanation of findings tailored to the specific Chamber's perspective.
-    `;
-
-    parts.push({
-      text: `Perform a ${chamber.toUpperCase().replace('_', ' ')} analysis on this content.`
-    });
-
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: {
-        parts: parts
-      },
-      config: {
-        systemInstruction: fullSystemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            ai_generated_probability: { type: Type.NUMBER, description: "Probability percentage (0-100)" },
-            content_type: { type: Type.STRING, enum: ["image", "video", "audio", "text"] },
-            deepfake_risk: { type: Type.STRING, enum: ["low", "medium", "high"] },
-            artifacts_detected: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING },
-              description: "List of specific indicators found relevant to the chamber"
-            },
-            model_likelihood: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING },
-              description: "Potential models (Diffusion, GAN, GPT-4, ElevenLabs) or Threat Patterns"
-            },
-            confidence_level: { type: Type.STRING, enum: ["high", "medium", "low"] },
-            analysis_summary: { type: Type.STRING, description: "Detailed explanation findings" },
-            limitations: { type: Type.STRING, description: "What could not be verified" }
-          },
-          required: [
-            "ai_generated_probability", 
-            "content_type", 
-            "deepfake_risk", 
-            "artifacts_detected", 
-            "model_likelihood", 
-            "confidence_level", 
-            "analysis_summary",
-            "limitations"
-          ]
-        }
-      }
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("No response from AI model");
+    // Generate mock analysis based on chamber type
+    const mockResult: AnalysisResult = generateMockAnalysis(chamber, fileType, file);
     
-    return JSON.parse(text) as AnalysisResult;
+    return mockResult;
 
   } catch (error) {
     console.error("Analysis failed:", error);
     throw error;
   }
-};
-
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
 };
