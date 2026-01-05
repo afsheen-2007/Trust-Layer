@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, MeshDistortMaterial, Float, Ring, Points, PointMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Augment JSX namespace to recognize React Three Fiber elements
+// Fix: Add global JSX definitions for Three.js elements to satisfy TypeScript
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -12,6 +12,7 @@ declare global {
       ambientLight: any;
       pointLight: any;
       fog: any;
+      [elemName: string]: any;
     }
   }
 }
